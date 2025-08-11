@@ -6,3 +6,8 @@ groq
 dotenv
 IPython
 streamlit
+langchain
+langchain-community
+langchain-core
+langchain-tavily
+langsmith
