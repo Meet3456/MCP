@@ -1,6 +1,7 @@
 from langgraph.graph import StateGraph,START,END,MessagesState
 from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
+from langgraph.checkpoint.memory import InMemorySaver
 from langchain_tavily import TavilySearch
 from typing import Annotated
 from typing_extensions import TypedDict
@@ -20,7 +21,7 @@ os.environ["LANGSMITH_TRACING"] = "true"
 os.environ["LANGSMITH_PROJECT"] = "ChatBot"
 
 
-# Travily search function:
+# Tavily search function:
 tool = TavilySearch(max_results=2,search_depth="advanced",include_images=True,include_image_descriptions=True)
 
 # Custom function
@@ -69,7 +70,7 @@ class ChatState(TypedDict):
     '''
 
 # Defining the node functionality:
-def AI@~12chat_node(state: ChatState):
+def chat_node(state: ChatState):
 
     # take user query from state
     messages = state["messages"]
@@ -83,30 +84,26 @@ def chat_node_simpler(state: MessagesState):
 
     return {"messages":[llm_with_tool.invoke(state["messages"])]}
 
+# checkpointer for saving memory:
+checkpointer = InMemorySaver()
 
-## Creating a Function for exporting it to langgraph studio:
+# initializing the state graph
+builder = StateGraph(ChatState)
 
-def make_complete_graph():
-    # initializing the state graph
-    builder = StateGraph(ChatState)
+# Adding nodes:
+builder.add_node("tool_calling_llm", chat_node_simpler)
+builder.add_node("tools",ToolNode(tools))
 
-    # Adding nodes:
-    builder.add_node("tool_calling_llm", chat_node_simpler)
-    builder.add_node("tools",ToolNode(tools))
+# Adding Edges
+builder.add_edge(START, "tool_calling_llm")
+builder.add_conditional_edges(
+    "tool_calling_llm",tools_condition
+    # If the latest message (result) from assistant is a tool call -> tools_condition routes to tools
+    # If the latest message (result) from assistant is a not a tool call -> tools_condition routes to END
+)
+# iterative workflow: passing the result of tools to model again(if initially llm returned a tool call) to check if another tool call is needed or not
+builder.add_edge("tools", "tool_calling_llm")
 
-    # Adding Edges
-    builder.add_edge(START, "tool_calling_llm")
-    builder.add_conditional_edges(
-        "tool_calling_llm",tools_condition
-        # If the latest message (result) from assistant is a tool call -> tools_condition routes to tools
-        # If the latest message (result) from assistant is a not a tool call -> tools_condition routes to END
-    )
-    # iterative workflow: passing the result of tools to model again(if initially llm returned a tool call) to check if another tool call is needed or not
-    builder.add_edge("tools", "tool_calling_llm")
+# Compile the graph
+chatbot = builder.compile()
 
-    # Compile the graph
-    graph = builder.compile()
-
-    return graph
-
-agent = make_complete_graph()
