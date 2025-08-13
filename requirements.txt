@@ -11,3 +11,4 @@ langchain-community
 langchain-core
 langchain-tavily
 langsmith
+langgraph-cli[inmem]

@@ -8,11 +8,17 @@ from langgraph.graph.message import add_messages
 from langchain_groq import ChatGroq
 from langchain_core.messages import BaseMessage, HumanMessage
 from dotenv import load_dotenv
+from IPython.display import Image
+import pathlib
 import os
 
 load_dotenv()
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
+os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_PROJECT"] = "ChatBot"
+
 
 # Travily search function:
 tool = TavilySearch(max_results=2,search_depth="advanced",include_images=True,include_image_descriptions=True)
@@ -63,7 +69,7 @@ class ChatState(TypedDict):
     '''
 
 # Defining the node functionality:
-def chat_node(state: ChatState):
+def AI@~12chat_node(state: ChatState):
 
     # take user query from state
     messages = state["messages"]
@@ -77,21 +83,30 @@ def chat_node_simpler(state: MessagesState):
 
     return {"messages":[llm_with_tool.invoke(state["messages"])]}
 
-# Creating the ReAct Agent Architecture graph:
 
-# initializing the state graph
-builder = StateGraph(ChatState)
+## Creating a Function for exporting it to langgraph studio:
 
-# Adding nodes:
-builder.add_node("chat_simpler", chat_node_simpler)
-builder.add_node("tools",ToolNode(tools))
+def make_complete_graph():
+    # initializing the state graph
+    builder = StateGraph(ChatState)
 
-# Adding Edges
-builder.add_edge(START, "chat_simpler")
-builder.add_conditional_edges(
-    "chat_simpler",tools_condition
-    # If the latest message (result) from assistant is a tool call -> tools_condition routes to tools
-    # If the latest message (result) from assistant is a not a tool call -> tools_condition routes to END
-)
-# iterative workflow: passing the result of tools to model again(if initially llm returned a tool call) to check if another tool call is needed or not
-builder.add_edge("tools", "chat_simpler")
+    # Adding nodes:
+    builder.add_node("tool_calling_llm", chat_node_simpler)
+    builder.add_node("tools",ToolNode(tools))
+
+    # Adding Edges
+    builder.add_edge(START, "tool_calling_llm")
+    builder.add_conditional_edges(
+        "tool_calling_llm",tools_condition
+        # If the latest message (result) from assistant is a tool call -> tools_condition routes to tools
+        # If the latest message (result) from assistant is a not a tool call -> tools_condition routes to END
+    )
+    # iterative workflow: passing the result of tools to model again(if initially llm returned a tool call) to check if another tool call is needed or not
+    builder.add_edge("tools", "tool_calling_llm")
+
+    # Compile the graph
+    graph = builder.compile()
+
+    return graph
+
+agent = make_complete_graph()
