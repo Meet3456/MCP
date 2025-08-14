@@ -105,5 +105,5 @@ builder.add_conditional_edges(
 builder.add_edge("tools", "tool_calling_llm")
 
 # Compile the graph
-chatbot = builder.compile()
+chatbot = builder.compile(checkpointer=checkpointer)
 
