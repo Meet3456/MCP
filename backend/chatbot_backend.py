@@ -53,7 +53,7 @@ def add(a:float,b:float)->float:
 tools = [tool,multiply,add]
 
 # Initialize the LLM:
-llm = ChatGroq(model="llama-3.3-70b-versatile")
+llm = ChatGroq(model="qwen/qwen3-32b")
 
 # Bind tools to the LLM:
 llm_with_tool = llm.bind_tools(tools)
