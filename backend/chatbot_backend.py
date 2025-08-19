@@ -22,7 +22,7 @@ os.environ["LANGSMITH_PROJECT"] = "ChatBot"
 
 
 # Tavily search function:
-tool = TavilySearch(max_results=2,search_depth="advanced",include_images=True,include_image_descriptions=True)
+tool = TavilySearch(max_results=2,search_depth="advanced")
 
 # Custom function
 def multiply(a:float,b:float)->float:
@@ -107,3 +107,15 @@ builder.add_edge("tools", "tool_calling_llm")
 # Compile the graph
 chatbot = builder.compile(checkpointer=checkpointer)
 
+'''
+CONFIG = {'configurable': {'thread_id': 'thread-1'}}
+
+response = chatbot.invoke(
+    {"messages":[HumanMessage(content="What is the capital of France?")]},
+    config=CONFIG
+)
+
+print(response["messages"][-1].content)
+
+print(chatbot.get_state(config=CONFIG).values["messages"]
+'''

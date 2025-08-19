@@ -19,4 +19,5 @@ dependencies = [
     "langsmith>=0.4.8",
     "mcp>=1.12.0",
     "streamlit>=1.47.1",
+    "streamlit-extras>=0.7.6",
 ]
