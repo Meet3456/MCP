@@ -1,17 +1,16 @@
-from langgraph.graph import StateGraph,START,END,MessagesState
+from langgraph.graph import StateGraph,START,MessagesState
 from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_tavily import TavilySearch
 from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 from langchain_groq import ChatGroq
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage
 from dotenv import load_dotenv
-from IPython.display import Image
-import pathlib
 import os
+import sqlite3
 
 load_dotenv()
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
@@ -84,8 +83,12 @@ def chat_node_simpler(state: MessagesState):
 
     return {"messages":[llm_with_tool.invoke(state["messages"])]}
 
+
+# Create the Database:
+conn = sqlite3.connect(database="Test.db",check_same_thread=False)
+
 # checkpointer for saving memory:
-checkpointer = InMemorySaver()
+checkpointer = SqliteSaver(conn=conn)
 
 # initializing the state graph
 builder = StateGraph(ChatState)
@@ -107,15 +110,16 @@ builder.add_edge("tools", "tool_calling_llm")
 # Compile the graph
 chatbot = builder.compile(checkpointer=checkpointer)
 
-'''
-CONFIG = {'configurable': {'thread_id': 'thread-1'}}
+# Checkpointer has a method called list which returns all saved checkpoints for any given thread or for all threads id passed None:
+def retrieve_all_threads():
+    all_threads = set()
+    for checkpoint in checkpointer.list(None):
+        all_threads.add(checkpoint.config['configurable']['thread_id'])
 
-response = chatbot.invoke(
-    {"messages":[HumanMessage(content="What is the capital of France?")]},
-    config=CONFIG
-)
+    return list(all_threads)
 
-print(response["messages"][-1].content)
-
-print(chatbot.get_state(config=CONFIG).values["messages"]
-'''
+# Monitoring
+# Evaluation
+# Alerts
+# Dataset Creation and Annotation
+# Prompt Engineering(try diff prompts,store it)

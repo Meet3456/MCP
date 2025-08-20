@@ -13,3 +13,4 @@ langchain-tavily
 langsmith
 langgraph-cli[inmem]
 streamlit-extras
+langgraph-checkpoint-sqlite

@@ -1,3 +1,4 @@
+from concurrent.futures import thread
 import streamlit as st
 from langchain_core.messages import HumanMessage
 import uuid
@@ -9,7 +10,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.chatbot_backend import chatbot
+from backend.chatbot_backend import chatbot , retrieve_all_threads
 
 
 # **************************************** utility functions *************************
@@ -26,15 +27,12 @@ def reset_chat():
     st.session_state['message_history'] = []
 
 def add_thread(thread_id):
-    existing_ids = [t['id'] for t in st.session_state['chat_threads']]
-    if thread_id not in existing_ids:
-        st.session_state['chat_threads'].append({
-            'id': thread_id,
-            'created_at': datetime.datetime.now()
-        })
+    if thread_id not in st.session_state['chat_threads']:
+        st.session_state['chat_threads'].append(thread_id)
 
 def load_conversation(thread_id):
-    return chatbot.get_state(config={'configurable': {'thread_id': thread_id}}).values['messages']
+    state = chatbot.get_state(config={'configurable': {'thread_id': thread_id}})
+    return state.values.get('messages', [])
 
 
 # **************************************** Session Setup ******************************
@@ -47,7 +45,7 @@ if 'thread_id' not in st.session_state:
     st.session_state['thread_id'] = generate_thread_id()
 
 if 'chat_threads' not in st.session_state:
-    st.session_state['chat_threads'] = []
+    st.session_state['chat_threads'] = retrieve_all_threads()
 
 add_thread(st.session_state['thread_id'])
 
@@ -63,10 +61,9 @@ if st.sidebar.button('New Chat'):
 st.sidebar.header('My Conversations')
 
 for thread_id in st.session_state['chat_threads'][::-1]:
-    formatted_time = thread_id["created_at"].strftime("%d %b, %I:%M:%S %p")
-    if st.sidebar.button(formatted_time):
-        st.session_state['thread_id'] = thread_id['id']
-        messages = load_conversation(thread_id['id'])
+    if st.sidebar.button(str(thread_id)):
+        st.session_state['thread_id'] = thread_id
+        messages = load_conversation(thread_id)
 
         temp_messages = []
 
@@ -94,6 +91,7 @@ if user_input:
     # first add the User message to message_history:
     st.session_state['message_history'].append({'role': 'user', 'content': user_input})
 
+    # Display the user message:
     with st.chat_message('user'):
         st.text(user_input)
 
