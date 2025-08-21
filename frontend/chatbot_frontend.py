@@ -83,7 +83,7 @@ for thread_id in st.session_state['chat_threads'][::-1]:
 # loading the conversation history
 for message in st.session_state['message_history']:
     with st.chat_message(message['role']):
-        st.text(message['content'])
+        st.markdown(message['content'])
 
 user_input = st.chat_input('Type here')
 
@@ -109,14 +109,21 @@ if user_input:
                         return chunk.content["answer"]
                     return None
 
-                ai_message=st.write_stream(
-                    (text for chunk, metadata in chatbot.stream(
-                        {"messages": [HumanMessage(content=user_input)]},
-                        config=CONFIG,
-                        stream_mode="messages"
-                    )
-                        if (text := extract_content(chunk)) is not None)
-                )
+                # Stream output live and capture final text
+                response_container = st.empty()
+                full_response = ""
+
+                for chunk, metadata in chatbot.stream(
+                    {"messages": [HumanMessage(content=user_input)]},
+                    config=CONFIG,
+                    stream_mode="messages"
+                ):
+                    content = extract_content(chunk)
+                    if content:
+                        full_response += content
+                        response_container.markdown(full_response)
+
+                ai_message = full_response  # store final response
         except Exception as e:
             st.error(f"An error occurred: {e}")
             ai_message="Sorry, I encountered an error while processing your request."
